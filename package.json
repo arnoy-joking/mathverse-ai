@@ -1,0 +1,11 @@
+{
+  "name": "mathverse-ai-static",
+  "version": "1.0.0",
+  "description": "Static version of MathVerse AI with OpenRouter.",
+  "private": true,
+  "scripts": {
+    "serve": "echo 'Open index.html in your browser or use a simple HTTP server for local development (e.g., live-server, http-server).'"
+  },
+  "author": "AI Assistant",
+  "license": "UNLICENSED"
+}
