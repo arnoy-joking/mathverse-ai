@@ -1,1332 +1,448 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Math Chat</title>
-
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), url('https://img.freepik.com/free-vector/abstract-red-circle-black-background-technology_1142-10293.jpg') no-repeat center center fixed;
-      background-size: cover;
-      color: #f0f0f0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow-x: hidden;
-    }
-
-    header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(to bottom, rgba(20, 20, 20, 0.9), rgba(10, 10, 10, 0.9));
-      padding: 1rem;
-      text-align: center;
-      font-weight: 700;
-      font-size: 1.5rem;
-      z-index: 100;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    }
-
-    .container {
-      flex: 1;
-      display: flex;
-      margin-top: 4rem;
-      min-height: calc(100vh - 4rem);
-    }
-
-    /* Sidebar */
-    #sidebar {
-      width: 280px;
-      background: linear-gradient(to bottom, rgba(40, 40, 40, 0.9), rgba(30, 30, 30, 0.9));
-      padding: 1.5rem;
-      overflow-y: auto;
-      transition: transform 0.3s ease;
-      border-right: 1px solid rgba(255, 255, 255, 0.15);
-      position: fixed;
-      top: 4rem;
-      bottom: 0;
-      z-index: 50;
-    }
-
-    #sidebar.hidden {
-      transform: translateX(-100%);
-    }
-
-    #chat-container {
-      flex: 1;
-      max-width: 900px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      transition: margin 0.3s ease;
-      padding: 1.5rem;
-      z-index: 10;
-    }
-
-    #sidebar.hidden + #chat-container {
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    #chatbox {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 1.2rem;
-      padding: 1rem;
-      overflow-y: auto;
-      background: rgba(20, 20, 20, 0.6);
-      border-radius: 1rem;
-    }
-
-    .message {
-      padding: 1rem;
-      border-radius: 0.75rem;
-      word-wrap: break-word;
-      max-width: 75%;
-      opacity: 0;
-      transform: translateY(10px);
-      animation: fadeIn 0.4s forwards;
-      position: relative;
-      transition: all 0.2s ease;
-    }
-
-    .message:hover .timestamp {
-      opacity: 1;
-    }
-
-    .user-msg {
-      align-self: flex-end;
-      background: linear-gradient(to bottom, #ffffff, #f0f0f0);
-      color: #1a1a1a;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-
-    .bot-msg {
-      align-self: flex-start;
-      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.1));
-      color: #f0f0f0;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-
-    .timestamp {
-      position: absolute;
-      top: -1.2rem;
-      font-size: 0.7rem;
-      color: #aaa;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-
-    .user-msg .timestamp {
-      right: 1rem;
-    }
-
-    .bot-msg .timestamp {
-      left: 1rem;
-    }
-
-    .typing-indicator {
-      display: flex;
-      gap: 0.4rem;
-      padding: 1rem;
-    }
-
-    .typing-indicator span {
-      width: 10px;
-      height: 10px;
-      background: #f0f0f0;
-      border-radius: 50%;
-      animation: bounce 1.2s infinite;
-    }
-
-    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-
-    @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
-    }
-
-    @keyframes fadeIn {
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    #input-container {
-      padding: 1rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.15);
-      background: linear-gradient(to bottom, rgba(20, 20, 20, 0.9), rgba(10, 10, 10, 0.9));
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      z-index: 20;
-      border-radius: 0.75rem;
-      box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.3);
-      position: relative;
-    }
-
-    #userInput {
-      flex: 1;
-      padding: 0.75rem;
-      border: none;
-      border-radius: 0.5rem;
-      background: #333;
-      color: #fff;
-      outline: none;
-      resize: none;
-      min-height: 44px;
-      max-height: 150px;
-      overflow-y: auto;
-      font-size: 1rem;
-      transition: height 0.2s ease;
-    }
-
-    #sendBtn, #toggleSidebar, #toggleCalculator {
-      background: linear-gradient(to bottom, #222, #111);
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      padding: 0.75rem;
-      border-radius: 0.5rem;
-      cursor: pointer;
-      width: 44px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s, transform 0.1s;
-    }
-
-    #sendBtn:hover, #toggleSidebar:hover, #toggleCalculator:hover {
-      background: linear-gradient(to bottom, #333, #222);
-      transform: scale(1.05);
-    }
-
-    #toggleSidebar {
-      position: fixed;
-      top: 5rem;
-      left: 1rem;
-      z-index: 60;
-    }
-
-    #sidebar.hidden ~ #toggleSidebar {
-      left: 1rem;
-    }
-
-    .conversation-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      margin-top: 1.5rem;
-    }
-
-    .conversation-item {
-      padding: 1rem;
-      border-radius: 0.5rem;
-      cursor: pointer;
-      background: rgba(255, 255, 255, 0.05);
-      transition: background 0.2s;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .conversation-item:hover,
-    .conversation-item.active {
-      background: rgba(255, 255, 255, 0.15);
-    }
-
-    .delete-chat {
-      background: none;
-      color: #ff5555;
-      border: none;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: color 0.2s;
-    }
-
-    .delete-chat:hover {
-      color: #ff7777;
-    }
-
-    #newChatBtn, #clearAllBtn, #exportBtn, #importBtn {
-      margin-top: 1rem;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      text-align: center;
-      background: rgba(255, 255, 255, 0.05);
-      cursor: pointer;
-      transition: background 0.2s;
-      font-weight: 600;
-    }
-
-    #newChatBtn:hover, #clearAllBtn:hover, #exportBtn:hover, #importBtn:hover {
-      background: rgba(255, 255, 255, 0.15);
-    }
-
-    #importInput {
-      display: none;
-    }
-
-    /* Calculator Panel */
-    #calculator-panel {
-      position: fixed;
-      top: 4rem;
-      right: 0;
-      width: 400px;
-      background: linear-gradient(135deg, rgba(30, 30, 60, 0.95), rgba(20, 20, 40, 0.95));
-      padding: 1.5rem;
-      overflow-y: auto;
-      transition: transform 0.3s ease;
-      border-left: 2px solid rgba(0, 255, 255, 0.3);
-      transform: translateX(100%);
-      z-index: 40;
-      height: calc(100vh - 4rem);
-      box-shadow: -4px 0 12px rgba(0, 255, 255, 0.2);
-      backdrop-filter: blur(8px);
-    }
-
-    #calculator-panel.open {
-      transform: translateX(0);
-    }
-
-    .calculator-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-
-    .calculator-header h3 {
-      font-weight: 700;
-      font-size: 1.3rem;
-      color: #00f0ff;
-      text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
-    }
-
-    #mode-indicator {
-      font-size: 0.9rem;
-      color: #ffcc00;
-      margin-left: 1rem;
-    }
-
-    #calculator-screen {
-      width: 100%;
-      min-height: 60px;
-      background: #1a1a2e;
-      border: 2px solid rgba(0, 255, 255, 0.3);
-      border-radius: 0.5rem;
-      padding: 0.75rem;
-      margin-bottom: 0.5rem;
-      font-size: 1.2rem;
-      color: #f0f0f0;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      box-shadow: inset 0 0 8px rgba(0, 255, 255, 0.2);
-      overflow-x: auto;
-      position: relative;
-      font-family: Arial, sans-serif;
-    }
-
-    #calculator-screen.error {
-      border-color: #ff5555;
-      box-shadow: inset 0 0 8px rgba(255, 85, 85, 0.4);
-    }
-
-    #calculator-preview {
-      width: 100%;
-      min-height: 40px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 0.5rem;
-      padding: 0.5rem;
-      margin-bottom: 1rem;
-      font-size: 1rem;
-      color: #e0e0ff;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      overflow-x: auto;
-    }
-
-    #closeCalculator, #clearCalculator, #deleteCalculator, #confirmCalculator, #allClearCalculator {
-      background: linear-gradient(135deg, #00f0ff, #0077ff);
-      color: #fff;
-      border: none;
-      padding: 0.5rem;
-      border-radius: 0.5rem;
-      cursor: pointer;
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-      box-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
-    }
-
-    #closeCalculator:hover, #clearCalculator:hover, #deleteCalculator:hover, #confirmCalculator:hover, #allClearCalculator:hover {
-      background: linear-gradient(135deg, #33faff, #3399ff);
-      transform: scale(1.1);
-      box-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
-    }
-
-    .calculator-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 0.6rem;
-      margin-top: 1rem;
-    }
-
-    .calc-btn {
-      padding: 0.8rem;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-      border: 1px solid rgba(0, 255, 255, 0.3);
-      border-radius: 0.5rem;
-      text-align: center;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-      font-size: 0.85rem;
-      color: #e0e0ff;
-      box-shadow: 0 0 6px rgba(0, 255, 255, 0.2);
-    }
-
-    .calc-btn:hover {
-      background: linear-gradient(135deg, #ffcc00, #ffaa00);
-      color: #000000;
-      transform: scale(1.05);
-      box-shadow: 0 0 10px rgba(255, 204, 0, 0.6);
-    }
-
-    .calc-btn:active {
-      transform: scale(1);
-    }
-
-    .calc-btn.scientific {
-      background: linear-gradient(135deg, #5e35b1, #4527a0);
-    }
-
-    .calc-btn.scientific:hover {
-      background: linear-gradient(135deg, #512da8, #311b92);
-      color: #ffffff;
-    }
-
-    .calc-btn.clear {
-      background: linear-gradient(135deg, #d32f2f, #b71c1c);
-    }
-
-    .calc-btn.clear:hover {
-      background: linear-gradient(135deg, #c62828, #9a0007);
-      color: #ffffff;
-    }
-
-    .calc-btn.confirm {
-      background: linear-gradient(135deg, #ff5722, #e64a19);
-      grid-column: span 2;
-    }
-
-    .calc-btn.confirm:hover {
-      background: linear-gradient(135deg, #f4511e, #d84315);
-      color: #ffffff;
-    }
-
-    .calc-btn.memory {
-      background: linear-gradient(135deg, #388e3c, #2e7d32);
-    }
-
-    .calc-btn.memory:hover {
-      background: linear-gradient(135deg, #43a047, #388e3c);
-      color: #ffffff;
-    }
-
-    @media (max-width: 768px) {
-      #sidebar {
-        width: 85%;
-        z-index: 70;
-      }
-
-      #sidebar.hidden {
-        transform: translateX(-100%);
-      }
-
-      #chat-container {
-        margin-left: 0;
-        width: 100%;
-      }
-
-      #calculator-panel {
-        width: 100%;
-        z-index: 40;
-      }
-
-      #toggleSidebar {
-        left: 0.5rem;
-        z-index: 80;
-      }
-
-      #input-container {
-        flex-wrap: wrap;
-        gap: 0.75rem;
-      }
-
-      #userInput {
-        font-size: 0.95rem;
-      }
-
-      .calc-btn {
-        font-size: 0.8rem;
-        padding: 0.7rem;
-      }
-
-      #sidebar:not(.hidden) + #chat-container,
-      #calculator-panel.open + #chat-container {
-        display: none;
-      }
-
-      #calculator-screen {
-        min-height: 50px;
-        font-size: 1rem;
-      }
-
-      #calculator-preview {
-        min-height: 30px;
-        font-size: 0.9rem;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek Chatbot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --primary-hover-color: #0056b3;
+            --background-color: #f0f2f6;
+            --chat-bg-color: #ffffff;
+            --user-bubble-color: #e0f7fa; /* Light Blue */
+            --ai-bubble-color: #f8f9fa;   /* Off-white */
+            --text-color: #333;
+            --border-color: #ddd;
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            --code-bg-color: #e9ecef;
+            --code-border-color: #dee2e6;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            box-sizing: border-box;
+            overflow-y: auto; /* Allow body to scroll if content is too tall */
+        }
+
+        .chatbot-container {
+            background-color: var(--chat-bg-color);
+            border-radius: 15px;
+            box-shadow: 0 8px 25px var(--shadow-light);
+            width: 100%;
+            max-width: 700px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Hide scrollbar for container itself */
+            min-height: 80vh; /* Minimum height for a good appearance */
+            max-height: 95vh; /* Max height to fit viewport, allowing body scroll */
+            position: relative; /* For sticky input area */
+        }
+
+        .chatbot-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: 700;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0; /* Don't shrink header */
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto; /* Scrollable message area */
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            scroll-behavior: smooth;
+            /* Ensure enough space for fixed input */
+            padding-bottom: 90px; /* Adjust based on chat-input-area height */
+        }
+
+        .message-bubble {
+            max-width: 85%;
+            padding: 12px 18px;
+            border-radius: 20px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            font-size: 0.95em;
+        }
+
+        .user-message {
+            background-color: var(--user-bubble-color);
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+
+        .ai-message {
+            background-color: var(--ai-bubble-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+
+        /* Markdown rendering within messages */
+        .ai-message h1, .ai-message h2, .ai-message h3, .ai-message h4 {
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            padding-bottom: 0.2em;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 1.2em; /* Adjust heading sizes */
+        }
+        .ai-message h2 { font-size: 1.15em; }
+        .ai-message h3 { font-size: 1.1em; }
+
+        .ai-message p {
+            margin-bottom: 0.5em;
+        }
+
+        .ai-message pre {
+            background-color: var(--code-bg-color);
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85em;
+            border: 1px solid var(--code-border-color);
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .ai-message code:not(pre code) { /* Inline code */
+            background-color: var(--code-bg-color);
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+            border: 1px solid var(--code-border-color);
+        }
+
+        .ai-message table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        .ai-message th, .ai-message td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            text-align: left;
+        }
+        .ai-message th {
+            background-color: #e9ecef;
+            font-weight: bold;
+        }
+
+        .ai-message hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 15px 0;
+        }
+
+        .ai-message ul, .ai-message ol {
+            margin-left: 20px;
+            padding-left: 0;
+            margin-bottom: 0.5em;
+        }
+        .ai-message li {
+            margin-bottom: 5px;
+        }
+
+        .chat-input-area {
+            display: flex;
+            padding: 15px 20px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--chat-bg-color);
+            flex-shrink: 0; /* Don't shrink input area */
+
+            /* --- Fixed Position Logic --- */
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%; /* Ensure it spans full width */
+            box-sizing: border-box; /* Include padding/border in width */
+            /* --- End Fixed Position Logic --- */
+        }
+
+        .chat-input-area input {
+            flex-grow: 1;
+            padding: 12px 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 25px;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .chat-input-area input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        .chat-input-area button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 20px;
+            margin-left: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .chat-input-area button:hover {
+            background-color: var(--primary-hover-color);
+            transform: translateY(-1px);
+        }
+
+        .chat-input-area button:active {
+            transform: translateY(0);
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            height: 1.5em; /* Ensure it doesn't collapse */
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-color);
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: bounce 0.6s infinite alternate;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+            0% { transform: translateY(0); opacity: 0.8; }
+            100% { transform: translateY(-5px); opacity: 0.3; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+                align-items: stretch;
+            }
+            .chatbot-container {
+                margin: 0;
+                border-radius: 0;
+                min-height: 100vh;
+                max-height: 100vh; /* Full height on smaller screens */
+            }
+        }
+    </style>
 </head>
 <body>
-  <header>AI Math Chat</header>
-
-  <div class="container">
-    <aside id="sidebar" class="hidden">
-      <button id="newChatBtn">+ New Chat</button>
-      <button id="clearAllBtn">Clear All Chats</button>
-      <button id="exportBtn">Export Chats</button>
-      <label for="importInput" id="importBtn">Import Chats</label>
-      <input type="file" id="importInput" accept=".json" />
-      <div class="conversation-list" id="conversationList"></div>
-    </aside>
-
-    <button id="toggleSidebar" aria-label="Toggle Sidebar">☰</button>
-
-    <main id="chat-container">
-      <div id="chatbox"></div>
-      <div id="input-container">
-        <button id="toggleCalculator" aria-label="Toggle Calculator">🧮</button>
-        <textarea id="userInput" placeholder="Type a message or use the calculator" rows="1" aria-label="Message Input"></textarea>
-        <button id="sendBtn" aria-label="Send Message">➤</button>
-      </div>
-    </main>
-
-    <aside id="calculator-panel">
-      <div class="calculator-header">
-        <h3>Scientific Calculator <span id="mode-indicator">DEG</span></h3>
-        <div>
-          <button id="allClearCalculator" aria-label="All Clear" class="clear">AC</button>
-          <button id="clearCalculator" aria-label="Clear Input" class="clear">C</button>
-          <button id="deleteCalculator" aria-label="Delete Last">⌫</button>
-          <button id="confirmCalculator" aria-label="Confirm Equation">✔</button>
-          <button id="closeCalculator" aria-label="Close Calculator">✕</button>
+    <div class="chatbot-container">
+        <div class="chatbot-header">DeepSeek AI Chat</div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message-bubble ai-message">Hello! I'm DeepSeek. How can I assist you today?</div>
         </div>
-      </div>
-      <div id="calculator-screen" aria-live="polite">Equation will appear here</div>
-      <div id="calculator-preview"></div>
-      <div class="calculator-grid">
-        <button class="calc-btn memory" data-value="M+" data-latex="M+">M+</button>
-        <button class="calc-btn memory" data-value="M-" data-latex="M-">M-</button>
-        <button class="calc-btn memory" data-value="MR" data-latex="MR">MR</button>
-        <button class="calc-btn memory" data-value="MC" data-latex="MC">MC</button>
-        <button class="calc-btn scientific" data-value="DEG" data-latex="DEG">DEG</button>
+        <div class="chat-input-area">
+            <input type="text" id="userInput" placeholder="Type your message..." autocomplete="off">
+            <button id="sendButton">
+                Send
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16">
+                    <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.417.29L.767 6.118l.452.18.082-.887.417-.29zM12.787 1.14l-11.417 4.542L1.874 5.37l11.417-4.542-1.748-1.748L0 6.643l.767-.306 14.502-5.772.65-.65a.5.5 0 0 0-.082-.887L1.874 5.37l11.417-4.542z"/>
+                    <path d="M15.854.146a.5.5 0 0 1 .11.54L13.06 12.338a.5.5 0 0 1-.92.054l-4.256-4.256-.417-.29a.5.5 0 0 0-.082-.887L.767 5.855l14.502-5.772L15.964.686a.5.5 0 0 0-.082-.887zM1.874 5.37l11.417-4.542L15.964.686a.5.5 0 0 0-.082-.887L1.874 5.37zM.767 5.855l-.452.18a.5.5 0 0 0-.082.887l.417.29L.767 6.118l.452.18.082-.887L.767 5.855z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
 
-        <button class="calc-btn" data-value="7" data-latex="7">7</button>
-        <button class="calc-btn" data-value="8" data-latex="8">8</button>
-        <button class="calc-btn" data-value="9" data-latex="9">9</button>
-        <button class="calc-btn" data-value="/" data-latex="\frac">÷</button>
-        <button class="calc-btn scientific" data-value="sin(" data-latex="\sin(" data-preview="\sin">sin</button>
+    <script>
+        // ⚠️ SECURITY WARNING: Never hardcode API keys in production.
+        // This is for demonstration and testing purposes only.
+        const OPENROUTER_API_KEY = "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";
+        const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+        const MODEL_NAME = "deepseek/deepseek-r1-0528-qwen3-8b:free";
 
-        <button class="calc-btn" data-value="4" data-latex="4">4</button>
-        <button class="calc-btn" data-value="5" data-latex="5">5</button>
-        <button class="calc-btn" data-value="6" data-latex="6">6</button>
-        <button class="calc-btn" data-value="*" data-latex="\times">×</button>
-        <button class="calc-btn scientific" data-value="cos(" data-latex="\cos(" data-preview="\cos">cos</button>
+        const chatMessages = document.getElementById('chatMessages');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
 
-        <button class="calc-btn" data-value="1" data-latex="1">1</button>
-        <button class="calc-btn" data-value="2" data-latex="2">2</button>
-        <button class="calc-btn" data-value="3" data-latex="3">3</button>
-        <button class="calc-btn" data-value="-" data-latex="-">−</button>
-        <button class="calc-btn scientific" data-value="tan(" data-latex="\tan(" data-preview="\tan">tan</button>
+        // Store chat history for context
+        const chatHistory = [{ role: "assistant", content: "Hello! I'm DeepSeek. How can I assist you today?" }];
 
-        <button class="calc-btn" data-value="0" data-latex="0">0</button>
-        <button class="calc-btn" data-value="." data-latex=".">.</button>
-        <button class="calc-btn scientific" data-value="x" data-latex="x">x</button>
-        <button class="calc-btn" data-value="+" data-latex="+">+</button>
-        <button class="calc-btn scientific" data-value="sin⁻¹(" data-latex="\sin^{-1}(" data-preview="\sin^{-1}">sin⁻¹</button>
+        // Basic Markdown to HTML converter (simplified for common elements)
+        function markdownToHtml(markdownText) {
+            let html = markdownText
+                // Headings (H1, H2, H3, H4 - simplified)
+                .replace(/^#### (.*$)/gm, '<h4>$1</h4>')
+                .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                // Horizontal Rules
+                .replace(/^-{3,}\s*$/gm, '<hr>')
+                // Bold text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/__(.*?)__/g, '<strong>$1</strong>')
+                // Italic text
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/_(.*?)_/g, '<em>$1</em>');
 
-        <button class="calc-btn scientific" data-value="y" data-latex="y">y</button>
-        <button class="calc-btn scientific" data-value="π" data-latex="\pi">π</button>
-        <button class="calc-btn scientific" data-value="e" data-latex="e">e</button>
-        <button class="calc-btn scientific" data-value="^" data-latex="^">^</button>
-        <button class="calc-btn scientific" data-value="cos⁻¹(" data-latex="\cos^{-1}(" data-preview="\cos^{-1}">cos⁻¹</button>
+            // Code blocks (multiline, assumes ```language\ncode\n```)
+            html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, lang, code) {
+                const languageClass = lang ? `language-${lang}` : '';
+                // Basic HTML escaping for code content
+                const escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `<pre><code class="${languageClass}">${escapedCode}</code></pre>`;
+            });
 
-        <button class="calc-btn scientific" data-value="sqrt(" data-latex="\sqrt{" data-preview="\sqrt">√</button>
-        <button class="calc-btn scientific" data-value="nthroot(" data-latex="\sqrt[n]{" data-preview="\sqrt[n]">√[n]</button>
-        <button class="calc-btn scientific" data-value="1/x" data-latex="\frac{1}{x}">1/x</button>
-        <button class="calc-btn scientific" data-value="%" data-latex="\%">%</button>
-        <button class="calc-btn scientific" data-value="tan⁻¹(" data-latex="\tan^{-1}(" data-preview="\tan^{-1}">tan⁻¹</button>
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-        <button class="calc-btn scientific" data-value="ln(" data-latex="\ln(" data-preview="\ln">ln</button>
-        <button class="calc-btn scientific" data-value="log(" data-latex="\log(" data-preview="\log">log</button>
-        <button class="calc-btn scientific" data-value="logb(" data-latex="\log_b(" data-preview="\log_b">log_b</button>
-        <button class="calc-btn scientific" data-value="!" data-latex="!">!</button>
-        <button class="calc-btn scientific" data-value="sinh(" data-latex="\sinh(" data-preview="\sinh">sinh</button>
+            // Lists (basic ul/ol)
+            html = html.replace(/^\s*(\*|\-|\+)\s+(.*)/gm, '<li>$2</li>') // unordered list items
+                       .replace(/^\s*(\d+)\.\s+(.*)/gm, '<li>$2</li>'); // ordered list items
 
-        <button class="calc-btn scientific" data-value="nPr" data-latex="nPr">nPr</button>
-        <button class="calc-btn scientific" data-value="nCr" data-latex="nCr">nCr</button>
-        <button class="calc-btn scientific" data-value="|x|" data-latex="|x|">|x|</button>
-        <button class="calc-btn scientific" data-value="e^" data-latex="e^">e^</button>
-        <button class="calc-btn scientific" data-value="cosh(" data-latex="\cosh(" data-preview="\cosh">cosh</button>
+            // Wrap loose list items in ul/ol tags. This is a very basic heuristic.
+            // A more robust parser would build an AST.
+            html = html.replace(/(<\/li>\s*<li>[^<]*<\/li>)+/g, '<ul>$&</ul>')
+                       .replace(/<li>(.*?)<\/li>\n<li>(.*?)<\/li>/g, '<li>$1</li><li>$2</li>'); // Simple way to group
 
-        <button class="calc-btn scientific" data-value="(" data-latex="(">(</button>
-        <button class="calc-btn scientific" data-value=")" data-latex=")">)</button>
-        <button class="calc-btn scientific" data-value="deg2rad(" data-latex="\deg2rad(" data-preview="\deg2rad">°→rad</button>
-        <button class="calc-btn scientific" data-value="rad2deg(" data-latex="\rad2deg(" data-preview="\rad2deg">rad→°</button>
-        <button class="calc-btn scientific" data-value="tanh(" data-latex="\tanh(" data-preview="\tanh">tanh</button>
+            // Tables (very basic - just splits by | and assumes first row is header)
+            html = html.replace(/^\|(.+)\|(?:\s*)\|[-=\s]+\|(?:\s*)\|(.+)\|([\s\S]*?)(?=\n{2,}|\n?$)/gm, function(match, headerLine, sepLine, bodyLines) {
+                let tableHtml = '<table><thead><tr>';
+                headerLine.split('|').forEach(h => { if (h.trim()) tableHtml += `<th>${h.trim()}</th>`; });
+                tableHtml += '</tr></thead><tbody>';
+                bodyLines.split('\n').forEach(line => {
+                    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+                        tableHtml += '<tr>';
+                        line.split('|').forEach(cell => { if (cell.trim()) tableHtml += `<td>${cell.trim()}</td>`; });
+                        tableHtml += '</tr>';
+                    }
+                });
+                tableHtml += '</tbody></table>';
+                return tableHtml;
+            });
 
-        <button class="calc-btn confirm" id="confirmCalculatorBtn" data-value="confirm" data-latex="confirm">✔</button>
-      </div>
-    </aside>
-  </div>
 
-  <script>
-    const API_KEY = "sk-or-v1-c192118c9f63eab3c07d0a933031f6566cc64ed765b04fb344bbcb9d3815e81af"; // Updated API Key
-    const MODEL = "qwen/qwen3-235b-a22b:free"; // Updated Model
+            // Convert remaining newlines to <br> for simple paragraph breaks (after other block elements)
+            html = html.split('\n').map(p => {
+                // If it's not already part of a block element (like pre, h, li, table)
+                // This is a simple check, a full parser would be more robust.
+                if (!p.trim().match(/^(<h|<pre|<ul|<ol|<table|<hr|<li)/)) {
+                    return p + '<br>';
+                }
+                return p;
+            }).join('');
 
-    const chatbox = document.getElementById("chatbox");
-    const userInput = document.getElementById("userInput");
-    const sendBtn = document.getElementById("sendBtn");
-    const newChatBtn = document.getElementById("newChatBtn");
-    const clearAllBtn = document.getElementById("clearAllBtn");
-    const exportBtn = document.getElementById("exportBtn");
-    const importInput = document.getElementById("importInput");
-    const conversationList = document.getElementById("conversationList");
-    const sidebar = document.getElementById("sidebar");
-    const toggleSidebar = document.getElementById("toggleSidebar");
-    const toggleCalculator = document.getElementById("toggleCalculator");
-    const closeCalculator = document.getElementById("closeCalculator");
-    const clearCalculator = document.getElementById("clearCalculator");
-    const allClearCalculator = document.getElementById("allClearCalculator");
-    const deleteCalculator = document.getElementById("deleteCalculator");
-    const confirmCalculator = document.getElementById("confirmCalculator");
-    const confirmCalculatorBtn = document.getElementById("confirmCalculatorBtn");
-    const calculatorPanel = document.getElementById("calculator-panel");
-    const calculatorScreen = document.getElementById("calculator-screen");
-    const calculatorPreview = document.getElementById("calculator-preview");
-    const modeIndicator = document.getElementById("mode-indicator");
 
-    let conversations = JSON.parse(localStorage.getItem("conversations")) || [];
-    let currentId = null;
-    let inputHistory = [];
-    let historyIndex = -1;
-    let draft = localStorage.getItem("draft") || "";
-    let calculatorExpression = "";
-    let latexExpression = "";
-    let calculatorHistory = [];
-    let calculatorHistoryIndex = -1;
-    let memory = 0;
-    let angleMode = "DEG"; // Default to degrees
-    let typedBuffer = ""; // For multi-character keyboard input (e.g., "sin")
-
-    // Debounce utility
-    function debounce(func, wait) {
-      let timeout;
-      return function (...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-      };
-    }
-
-    function generateId() {
-      return Math.random().toString(36).substring(2, 11);
-    }
-
-    function formatTimestamp() {
-      const now = new Date();
-      return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function renderConversations() {
-      conversationList.innerHTML = "";
-      conversations.forEach(conv => {
-        const item = document.createElement("div");
-        item.className = `conversation-item ${conv.id === currentId ? 'active' : ''}`;
-        item.setAttribute("role", "button");
-        item.setAttribute("aria-label", `Load conversation: ${conv.title}`);
-        item.innerHTML = `
-          <span>${conv.title}</span>
-          <button class="delete-chat" aria-label="Delete conversation">Delete</button>
-        `;
-        item.querySelector(".delete-chat").onclick = (e) => {
-          e.stopPropagation();
-          deleteConversation(conv.id);
-        };
-        item.onclick = () => loadConversation(conv.id);
-        conversationList.appendChild(item);
-      });
-    }
-
-    function addMessage(role, content, save = true, messageId = null) {
-      const msgDiv = document.createElement("div");
-      msgDiv.className = `message ${role === 'user' ? 'user-msg' : 'bot-msg'}`;
-      msgDiv.dataset.messageId = messageId || generateId();
-      msgDiv.innerHTML = `
-        ${content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
-        <span class="timestamp">${formatTimestamp()}</span>
-      `;
-      chatbox.appendChild(msgDiv);
-      chatbox.scrollTop = chatbox.scrollHeight;
-      MathJax.typesetPromise([msgDiv]).catch(err => console.error(err));
-
-      if (save && currentId) {
-        const conv = conversations.find(c => c.id === currentId);
-        if (conv) {
-          conv.messages.push({ role, content, id: msgDiv.dataset.messageId, timestamp: formatTimestamp() });
-          if (role === "user" && !conv.title.startsWith("Chat ")) {
-            conv.title = content.replace(/\\\(.*?\\\)/g, '').slice(0, 30) + (content.length > 30 ? "..." : "");
-          }
-          saveConversations();
+            return html;
         }
-      }
-    }
 
-    async function sendMessage() {
-      const text = userInput.value.trim();
-      if (!text) return;
-      addMessage("user", text);
-      userInput.value = "";
-      userInput.style.height = "44px"; // Reset input height
-      localStorage.removeItem("draft"); // Clear draft
-      inputHistory.push(text);
-      historyIndex = inputHistory.length;
-      showTypingIndicator();
+        // Function to add a message to the chat display
+        function addMessage(sender, message, isTyping = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message-bubble');
+            messageDiv.classList.add(sender === 'user' ? 'user-message' : 'ai-message');
+            
+            if (isTyping) {
+                messageDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+                messageDiv.id = 'typingIndicator';
+            } else {
+                // For AI messages, parse markdown
+                messageDiv.innerHTML = sender === 'ai' ? markdownToHtml(message) : message;
+            }
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
+            return messageDiv; // Return the message element for potential updates
+        }
 
-      try {
-        const conv = conversations.find(c => c.id === currentId);
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${API_KEY}`,
-            "HTTP-Referer": window.location.href,
-            "X-Title": "AI Math Chat",
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: MODEL,
-            messages: conv.messages
-          })
+        // Function to send message to OpenRouter API
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === "") return;
+
+            addMessage('user', message);
+            chatHistory.push({ role: "user", content: message });
+            userInput.value = ''; // Clear input
+            sendButton.disabled = true; // Disable button while AI is responding
+
+            const typingMessageDiv = addMessage('ai', '', true); // Show typing indicator
+
+            try {
+                const response = await fetch(OPENROUTER_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${OPENROUTER_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: MODEL_NAME,
+                        messages: chatHistory, // Send entire history for context
+                        max_tokens: 500, // Optional: Limit response length
+                        temperature: 0.7 // Optional: Adjust creativity
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`API Error: ${response.status} - ${errorData.message || 'Unknown error'}`);
+                }
+
+                const data = await response.json();
+                const aiResponse = data.choices[0].message.content;
+
+                // Remove typing indicator
+                if (typingMessageDiv) typingMessageDiv.remove();
+
+                addMessage('ai', aiResponse);
+                chatHistory.push({ role: "assistant", content: aiResponse });
+
+            } catch (error) {
+                console.error("Error fetching AI response:", error);
+                // Remove typing indicator and show error message
+                if (typingMessageDiv) typingMessageDiv.remove();
+                addMessage('ai', `**Oops!** Something went wrong. Please try again later.<br>_Error: ${error.message}_`);
+            } finally {
+                sendButton.disabled = false; // Re-enable button
+                chatMessages.scrollTop = chatMessages.scrollHeight; // Ensure scroll to bottom after action
+            }
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter' && !sendButton.disabled) {
+                sendMessage();
+            }
         });
 
-        if (!response.ok) throw new Error("API request failed");
-        const data = await response.json();
-        hideTypingIndicator();
-        const reply = data.choices?.[0]?.message?.content || "Error: No response.";
-        addMessage("bot", reply);
-      } catch (error) {
-        hideTypingIndicator();
-        addMessage("bot", `⚠️ Error: ${error.message}. Please try again.`);
-      }
-    }
-
-    function showTypingIndicator() {
-      const loader = document.createElement("div");
-      loader.className = "typing-indicator";
-      loader.setAttribute("aria-label", "AI is typing");
-      loader.innerHTML = `<span></span><span></span><span></span>`;
-      chatbox.appendChild(loader);
-      chatbox.scrollTop = chatbox.scrollHeight;
-    }
-
-    function hideTypingIndicator() {
-      const loader = chatbox.querySelector(".typing-indicator");
-      if (loader) loader.remove();
-    }
-
-    function newConversation() {
-      const id = generateId();
-      const title = `Chat ${conversations.length + 1}`;
-      conversations.unshift({ id, title, messages: [] });
-      currentId = id;
-      chatbox.innerHTML = "";
-      userInput.value = "";
-      userInput.style.height = "44px"; // Reset input height
-      calculatorExpression = "";
-      latexExpression = "";
-      calculatorScreen.innerHTML = "Equation will appear here";
-      calculatorPreview.innerHTML = "";
-      calculatorHistory = [];
-      calculatorHistoryIndex = -1;
-      memory = 0;
-      angleMode = "DEG";
-      modeIndicator.textContent = angleMode;
-      typedBuffer = "";
-      localStorage.removeItem("draft");
-      inputHistory = [];
-      historyIndex = -1;
-      saveConversations();
-      userInput.focus();
-      sidebar.classList.add("hidden");
-      calculatorPanel.classList.remove("open");
-    }
-
-    function deleteConversation(id) {
-      conversations = conversations.filter(c => c.id !== id);
-      if (currentId === id) {
-        chatbox.innerHTML = "";
-        currentId = null;
-        calculatorExpression = "";
-        latexExpression = "";
-        calculatorScreen.innerHTML = "Equation will appear here";
-        calculatorPreview.innerHTML = "";
-        calculatorHistory = [];
-        calculatorHistoryIndex = -1;
-        memory = 0;
-        angleMode = "DEG";
-        modeIndicator.textContent = angleMode;
-        typedBuffer = "";
-        if (conversations.length > 0) {
-          currentId = conversations[0].id;
-          loadConversation(currentId);
-        } else {
-          newConversation();
-        }
-      }
-      saveConversations();
-    }
-
-    function clearAllConversations() {
-      if (confirm("Are you sure you want to delete all conversations?")) {
-        conversations = [];
-        chatbox.innerHTML = "";
-        currentId = null;
-        calculatorExpression = "";
-        latexExpression = "";
-        calculatorScreen.innerHTML = "Equation will appear here";
-        calculatorPreview.innerHTML = "";
-        calculatorHistory = [];
-        calculatorHistoryIndex = -1;
-        memory = 0;
-        angleMode = "DEG";
-        modeIndicator.textContent = angleMode;
-        typedBuffer = "";
-        localStorage.removeItem("conversations");
-        newConversation();
-      }
-    }
-
-    function exportConversations() {
-      const dataStr = JSON.stringify(conversations, null, 2);
-      const blob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "conversations.json";
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function importConversations(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const imported = JSON.parse(e.target.result);
-          if (Array.isArray(imported)) {
-            conversations = imported;
-            saveConversations();
-            if (conversations.length > 0) {
-              currentId = conversations[0].id;
-              loadConversation(currentId);
-            } else {
-              newConversation();
-            }
-          } else {
-            alert("Invalid file format.");
-          }
-        } catch (error) {
-          alert("Error importing conversations: " + error.message);
-        }
-      };
-      reader.readAsText(file);
-      importInput.value = "";
-    }
-
-    function saveConversations() {
-      try {
-        localStorage.setItem("conversations", JSON.stringify(conversations));
-        renderConversations();
-      } catch (error) {
-        addMessage("bot", `⚠️ Error saving conversations: ${error.message}`);
-      }
-    }
-
-    function loadConversation(id) {
-      currentId = id;
-      chatbox.innerHTML = "";
-      userInput.value = "";
-      userInput.style.height = "44px"; // Reset input height
-      calculatorExpression = "";
-      latexExpression = "";
-      calculatorScreen.innerHTML = "Equation will appear here";
-      calculatorPreview.innerHTML = "";
-      calculatorHistory = [];
-      calculatorHistoryIndex = -1;
-      memory = 0;
-      angleMode = "DEG";
-      modeIndicator.textContent = angleMode;
-      typedBuffer = "";
-      localStorage.removeItem("draft");
-      inputHistory = [];
-      historyIndex = -1;
-      const conv = conversations.find(c => c.id === id);
-      if (conv) {
-        conv.messages.forEach(msg => addMessage(msg.role, msg.content, false, msg.id));
-      }
-      renderConversations();
-      sidebar.classList.add("hidden");
-      calculatorPanel.classList.remove("open");
-    }
-
-    function toggleSidebarPanel() {
-      sidebar.classList.toggle("hidden");
-      if (!sidebar.classList.contains("hidden")) {
-        calculatorPanel.classList.remove("open");
-      }
-    }
-
-    function toggleCalculatorPanel() {
-      calculatorPanel.classList.toggle("open");
-      if (calculatorPanel.classList.contains("open")) {
-        sidebar.classList.add("hidden");
-        calculatorScreen.innerHTML = calculatorExpression || "Equation will appear here";
-        updatePreview();
-        userInput.blur(); // Ensure main input loses focus
-      } else {
-        calculatorExpression = "";
-        latexExpression = "";
-        calculatorScreen.innerHTML = "Equation will appear here";
-        calculatorPreview.innerHTML = "";
-        calculatorHistory = [];
-        calculatorHistoryIndex = -1;
-        typedBuffer = "";
-      }
-    }
-
-    function clearInput() {
-      calculatorExpression = "";
-      latexExpression = "";
-      calculatorScreen.innerHTML = "Equation will appear here";
-      calculatorPreview.innerHTML = "";
-      calculatorHistory = [];
-      calculatorHistoryIndex = -1;
-      typedBuffer = "";
-      userInput.focus();
-    }
-
-    function allClear() {
-      clearInput();
-      memory = 0;
-      angleMode = "DEG";
-      modeIndicator.textContent = angleMode;
-    }
-
-    function deleteLast() {
-      if (calculatorExpression) {
-        calculatorExpression = calculatorExpression.slice(0, -1);
-        latexExpression = latexExpression.slice(0, -1);
-        calculatorScreen.innerHTML = calculatorExpression || "Equation will appear here";
-        updatePreview();
-        calculatorHistory.push({ expr: calculatorExpression, latex: latexExpression });
-        calculatorHistoryIndex = calculatorHistory.length - 1;
-        typedBuffer = "";
-      }
-    }
-
-    function updatePreview() {
-      if (calculatorExpression && calculatorExpression !== "Equation will appear here") {
-        calculatorPreview.innerHTML = `\\(${latexExpression}\\)`;
-        MathJax.typesetPromise([calculatorPreview]).catch(err => console.error(err));
-      } else {
-        calculatorPreview.innerHTML = "";
-      }
-    }
-
-    function appendValue(value, latex) {
-      calculatorScreen.classList.remove("error");
-      if (calculatorScreen.innerHTML === "Equation will appear here") {
-        calculatorExpression = value;
-        latexExpression = latex;
-      } else {
-        calculatorExpression += value;
-        latexExpression += latex;
-      }
-      calculatorScreen.innerHTML = calculatorExpression;
-      updatePreview();
-      calculatorHistory.push({ expr: calculatorExpression, latex: latexExpression });
-      calculatorHistoryIndex = calculatorHistory.length - 1;
-      typedBuffer = "";
-    }
-
-    function toggleAngleMode() {
-      angleMode = angleMode === "DEG" ? "RAD" : "DEG";
-      modeIndicator.textContent = angleMode;
-    }
-
-    function memoryAdd() {
-      try {
-        const value = parseFloat(calculatorExpression) || 0;
-        memory += value;
-        calculatorExpression = "";
-        latexExpression = "";
-        calculatorScreen.innerHTML = "Equation will appear here";
-        calculatorPreview.innerHTML = "";
-        typedBuffer = "";
-      } catch (error) {
-        calculatorScreen.classList.add("error");
-        calculatorScreen.innerHTML = "Invalid Memory Input";
-        calculatorPreview.innerHTML = "";
-        setTimeout(() => {
-          calculatorScreen.classList.remove("error");
-          calculatorScreen.innerHTML = calculatorExpression || "Equation will appear here";
-          updatePreview();
-        }, 2000);
-      }
-    }
-
-    function memorySubtract() {
-      try {
-        const value = parseFloat(calculatorExpression) || 0;
-        memory -= value;
-        calculatorExpression = "";
-        latexExpression = "";
-        calculatorScreen.innerHTML = "Equation will appear here";
-        calculatorPreview.innerHTML = "";
-        typedBuffer = "";
-      } catch (error) {
-        calculatorScreen.classList.add("error");
-        calculatorScreen.innerHTML = "Invalid Memory Input";
-        calculatorPreview.innerHTML = "";
-        setTimeout(() => {
-          calculatorScreen.classList.remove("error");
-          calculatorScreen.innerHTML = calculatorExpression || "Equation will appear here";
-          updatePreview();
-        }, 2000);
-      }
-    }
-
-    function memoryRecall() {
-      calculatorExpression = memory.toString();
-      latexExpression = memory.toString();
-      calculatorScreen.innerHTML = calculatorExpression || "Equation will appear here";
-      updatePreview();
-      calculatorHistory.push({ expr: calculatorExpression, latex: latexExpression });
-      calculatorHistoryIndex = calculatorHistory.length - 1;
-      typedBuffer = "";
-    }
-
-    function memoryClear() {
-      memory = 0;
-      calculatorExpression = "";
-      latexExpression = "";
-      calculatorScreen.innerHTML = "Equation will appear here";
-      calculatorPreview.innerHTML = "";
-      typedBuffer = "";
-    }
-
-    function confirmEquation() {
-      if (calculatorExpression && calculatorExpression !== "Equation will appear here") {
-        // Basic validation for unmatched parentheses
-        const openParens = (latexExpression.match(/\(/g) || []).length;
-        const closeParens = (latexExpression.match(/\)/g) || []).length;
-        if (openParens !== closeParens) {
-          calculatorScreen.classList.add("error");
-          calculatorScreen.innerHTML = "Unmatched Parentheses";
-          calculatorPreview.innerHTML = "";
-          setTimeout(() => {
-            calculatorScreen.classList.remove("error");
-            calculatorScreen.innerHTML = calculatorExpression || "Equation will appear here";
-            updatePreview();
-          }, 2000);
-          return;
-        }
-        if (confirm("Insert this equation into the message bar?")) {
-          userInput.value += `\\(${latexExpression}\\)`;
-          userInput.style.height = "44px"; // Reset height
-          userInput.style.height = `${Math.min(userInput.scrollHeight, 150)}px`; // Adjust height
-          localStorage.setItem("draft", userInput.value);
-          calculatorExpression = "";
-          latexExpression = "";
-          calculatorScreen.innerHTML = "Equation will appear here";
-          calculatorPreview.innerHTML = "";
-          calculatorHistory = [];
-          calculatorHistoryIndex = -1;
-          typedBuffer = "";
-          userInput.focus();
-        }
-      }
-    }
-
-    // Calculator button handlers
-    document.querySelectorAll(".calc-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const value = btn.dataset.value;
-        const latex = btn.dataset.latex;
-        if (value === "confirm") {
-          confirmEquation();
-        } else if (value === "DEG") {
-          toggleAngleMode();
-        } else if (value === "M+") {
-          memoryAdd();
-        } else if (value === "M-") {
-          memorySubtract();
-        } else if (value === "MR") {
-          memoryRecall();
-        } else if (value === "MC") {
-          memoryClear();
-        } else {
-          appendValue(value, latex);
-        }
-      });
-    });
-
-    // Calculator keyboard input
-    function handleCalculatorKeyInput(e) {
-      if (!calculatorPanel.classList.contains("open")) return;
-      e.preventDefault();
-      const key = e.key.toLowerCase();
-      const keyMap = {
-        "0": { value: "0", latex: "0" },
-        "1": { value: "1", latex: "1" },
-        "2": { value: "2", latex: "2" },
-        "3": { value: "3", latex: "3" },
-        "4": { value: "4", latex: "4" },
-        "5": { value: "5", latex: "5" },
-        "6": { value: "6", latex: "6" },
-        "7": { value: "7", latex: "7" },
-        "8": { value: "8", latex: "8" },
-        "9": { value: "9", latex: "9" },
-        "+": { value: "+", latex: "+" },
-        "-": { value: "-", latex: "-" },
-        "*": { value: "*", latex: "\\times" },
-        "/": { value: "/", latex: "\\frac" },
-        "(": { value: "(", latex: "(" },
-        ")": { value: ")", latex: ")" },
-        ".": { value: ".", latex: "." },
-        "x": { value: "x", latex: "x" },
-        "y": { value: "y", latex: "y" },
-        "e": { value: "e", latex: "e" },
-        "p": { value: "π", latex: "\\pi" },
-        "^": { value: "^", latex: "^" },
-        "%": { value: "%", latex: "\\%" },
-        "!": { value: "!", latex: "!" },
-        "|": { value: "|x|", latex: "|x|" }
-      };
-
-      // Handle single-character inputs
-      if (keyMap[key]) {
-        appendValue(keyMap[key].value, keyMap[key].latex);
-        typedBuffer = "";
-      } else if (key === "backspace") {
-        deleteLast();
-      } else if (key === "enter") {
-        confirmEquation();
-      } else if (key === "z" && e.ctrlKey) {
-        if (calculatorHistoryIndex > 0) {
-          calculatorHistoryIndex--;
-          calculatorExpression = calculatorHistory[calculatorHistoryIndex].expr || "";
-          latexExpression = calculatorHistory[calculatorHistoryIndex].latex || "";
-          calculatorScreen.innerHTML = calculatorExpression || "Equation will appear here";
-          updatePreview();
-          typedBuffer = "";
-        }
-      } else if (key === "y" && e.ctrlKey) {
-        if (calculatorHistoryIndex < calculatorHistory.length - 1) {
-          calculatorHistoryIndex++;
-          calculatorExpression = calculatorHistory[calculatorHistoryIndex].expr || "";
-          latexExpression = calculatorHistory[calculatorHistoryIndex].latex || "";
-          calculatorScreen.innerHTML = calculatorExpression || "Equation will appear here";
-          updatePreview();
-          typedBuffer = "";
-        }
-      } else if (/[a-z]/.test(key)) {
-        // Handle multi-character function inputs
-        typedBuffer += key;
-        const functionMap = {
-          "sin": { value: "sin(", latex: "\\sin(", preview: "\\sin" },
-          "cos": { value: "cos(", latex: "\\cos(", preview: "\\cos" },
-          "tan": { value: "tan(", latex: "\\tan(", preview: "\\tan" },
-          "sinh": { value: "sinh(", latex: "\\sinh(", preview: "\\sinh" },
-          "cosh": { value: "cosh(", latex: "\\cosh(", preview: "\\cosh" },
-          "tanh": { value: "tanh(", latex: "\\tanh(", preview: "\\tanh" },
-          "sin^-1": { value: "sin⁻¹(", latex: "\\sin^{-1}(", preview: "\\sin^{-1}" },
-          "cos^-1": { value: "cos⁻¹(", latex: "\\cos^{-1}(", preview: "\\cos^{-1}" },
-          "tan^-1": { value: "tan⁻¹(", latex: "\\tan^{-1}(", preview: "\\tan^{-1}" },
-          "ln": { value: "ln(", latex: "\\ln(", preview: "\\ln" },
-          "log": { value: "log(", latex: "\\log(", preview: "\\log" },
-          "logb": { value: "logb(", latex: "\\log_b(", preview: "\\log_b" },
-          "sqrt": { value: "sqrt(", latex: "\\sqrt{", preview: "\\sqrt" },
-          "nthroot": { value: "nthroot(", latex: "\\sqrt[n]{", preview: "\\sqrt[n]" },
-          "deg2rad": { value: "deg2rad(", latex: "\\deg2rad(", preview: "\\deg2rad" },
-          "rad2deg": { value: "rad2deg(", latex: "\\rad2deg(", preview: "\\rad2deg" },
-          "npr": { value: "nPr", latex: "nPr" },
-          "ncr": { value: "nCr", latex: "nCr" },
-          "e^": { value: "e^", latex: "e^" }
-        };
-        for (const [func, data] of Object.entries(functionMap)) {
-          if (func.startsWith(typedBuffer)) {
-            if (typedBuffer === func) {
-              appendValue(data.value, data.latex);
-              typedBuffer = "";
-            }
-            break;
-          }
-        }
-      }
-    }
-
-    // Event Listeners
-    sendBtn.addEventListener("click", sendMessage);
-    userInput.addEventListener("keypress", e => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
-
-    userInput.addEventListener("input", () => {
-      userInput.style.height = "44px"; // Reset to minimum height
-      userInput.style.height = `${Math.min(userInput.scrollHeight, 150)}px`; // Adjust to content
-      localStorage.setItem("draft", userInput.value);
-    });
-
-    userInput.addEventListener("keydown", e => {
-      if (e.ctrlKey && e.key === "z") {
-        e.preventDefault();
-        if (historyIndex > 0) {
-          historyIndex--;
-          userInput.value = inputHistory[historyIndex] || "";
-          userInput.style.height = "44px";
-          userInput.style.height = `${Math.min(userInput.scrollHeight, 150)}px`;
-          localStorage.setItem("draft", userInput.value);
-        }
-      } else if (e.ctrlKey && e.key === "y") {
-        e.preventDefault();
-        if (historyIndex < inputHistory.length - 1) {
-          historyIndex++;
-          userInput.value = inputHistory[historyIndex] || "";
-          userInput.style.height = "44px";
-          userInput.style.height = `${Math.min(userInput.scrollHeight, 150)}px`;
-          localStorage.setItem("draft", userInput.value);
-        }
-      }
-    });
-
-    newChatBtn.addEventListener("click", newConversation);
-    clearAllBtn.addEventListener("click", clearAllConversations);
-    exportBtn.addEventListener("click", exportConversations);
-    importInput.addEventListener("change", importConversations);
-    toggleSidebar.addEventListener("click", toggleSidebarPanel);
-    toggleCalculator.addEventListener("click", toggleCalculatorPanel);
-    closeCalculator.addEventListener("click", toggleCalculatorPanel);
-    clearCalculator.addEventListener("click", clearInput);
-    allClearCalculator.addEventListener("click", allClear);
-    deleteCalculator.addEventListener("click", deleteLast);
-    confirmCalculator.addEventListener("click", confirmEquation);
-    confirmCalculatorBtn.addEventListener("click", confirmEquation);
-
-    document.addEventListener("keydown", handleCalculatorKeyInput);
-
-    // Restore draft on load
-    userInput.value = draft;
-    if (draft) {
-      userInput.style.height = "44px";
-      userInput.style.height = `${Math.min(userInput.scrollHeight, 150)}px`;
-    }
-
-    // Initialize
-    if (conversations.length === 0) {
-      newConversation();
-    } else {
-      currentId = conversations[0].id;
-      loadConversation(currentId);
-    }
-
-    renderConversations();
-
-    // Keyboard navigation for accessibility
-    document.addEventListener("keydown", e => {
-      if (e.key === "Escape") {
-        if (!sidebar.classList.contains("hidden")) {
-          toggleSidebarPanel();
-        } else if (calculatorPanel.classList.contains("open")) {
-          toggleCalculatorPanel();
-        }
-      }
-    });
-  </script>
+        // Initial scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    </script>
 </body>
 </html>
