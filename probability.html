@@ -3,336 +3,819 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>সম্ভাব্যতার খেলা: সূত্র আনলক করুন!</title>
+    <title>সম্ভাবনা শিক্ষা - ইন্টারেক্টিভ গেম</title>
+    <!-- KaTeX CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <style>
-        body {
-            font-family: 'Noto Sans Bengali', Arial, sans-serif;
-            background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
-            color: #333;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            max-width: 900px;
-            margin: 0 auto;
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #e74c3c;
+            --light: #f8f9fa;
+            --dark: #2c3e50;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --book-bg: #fdf6e3;
+            --book-border: #d4b56a;
         }
-        h1 {
-            color: #2c3e50;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'SolaimanLipi', 'Siyam Rupali', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
             text-align: center;
-            border-bottom: 3px solid #3498db;
-            padding-bottom: 15px;
+            margin-bottom: 30px;
+            padding: 25px;
+            background: var(--book-bg);
+            color: var(--dark);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--book-border);
             position: relative;
         }
-        h1::after {
-            content: "🎲";
-            font-size: 2em;
+        header::before {
+            content: "";
             position: absolute;
-            right: 10px;
-            top: -10px;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
         }
-        .level {
-            background-color: #fff;
-            border: 2px solid #bdc3c7;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            display: none;
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: var(--primary);
         }
-        .level.active {
-            display: block;
-            animation: fadeIn 0.5s ease-in;
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--secondary);
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        .game-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+        }
+        .formula-section {
+            flex: 1;
+            min-width: 350px;
+            background: var(--book-bg);
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            border: 1px solid var(--book-border);
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .formula-section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 8px;
+            background: linear-gradient(to bottom, var(--primary), var(--secondary));
+            border-radius: 8px 0 0 8px;
+        }
+        .locked {
+            opacity: 0.7;
+            pointer-events: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .locked::after {
+            content: "🔒";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            z-index: 10;
+            background: rgba(255,255,255,0.8);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .formula-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--book-border);
+        }
+        .formula-number {
+            background-color: var(--primary);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .formula-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--dark);
         }
         .formula-box {
-            background-color: #ecf0f1;
-            border-left: 5px solid #3498db;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 8px;
-            font-size: 1.1em;
-        }
-        .explanation {
-            background-color: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .quiz {
-            background-color: #f0f8ff;
+            background-color: white;
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            border: 1px solid #3498db;
+            border: 1px solid #ddd;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            overflow-x: auto;
         }
-        input {
+        .math-formula {
+            font-size: 1.5rem;
+            font-family: 'Times New Roman', serif;
+            color: var(--dark);
             padding: 10px;
-            margin: 10px;
-            border: 1px solid #bdc3c7;
-            border-radius: 4px;
-            font-size: 16px;
-            width: 100px;
+            word-break: break-word;
         }
-        button {
-            padding: 12px 20px;
-            margin: 10px;
-            border: none;
+        .fraction {
+            display: inline-block;
+            vertical-align: middle;
+            text-align: center;
+            margin: 0 5px;
+        }
+        .fraction span {
+            display: block;
+        }
+        .numerator {
+            border-bottom: 1px solid var(--dark);
+            padding: 0 5px;
+        }
+        .denominator {
+            padding: 0 5px;
+        }
+        .explanation {
+            margin: 20px 0;
+            line-height: 1.8;
+            font-size: 1.1rem;
+            text-align: justify;
+        }
+        .example {
+            background-color: #e8f4fc;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid var(--secondary);
+            overflow-x: auto;
+        }
+        .example-title {
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--dark);
+            font-size: 1.2rem;
+        }
+        .practice-area {
+            background-color: #f0f7ff;
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 25px;
+            border: 1px solid #c5d9f1;
+            overflow-x: auto;
+        }
+        .practice-title {
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--dark);
+            font-size: 1.2rem;
+        }
+        .question {
+            margin-bottom: 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .option {
+            padding: 12px 18px;
+            background-color: white;
+            border: 1px solid #ddd;
             border-radius: 6px;
-            font-size: 16px;
             cursor: pointer;
-            transition: all 0.3s;
-            background-color: #3498db;
-            color: white;
+            transition: all 0.2s;
+            font-size: 1.05rem;
+            word-break: break-word;
         }
-        button:hover {
-            background-color: #2980b9;
+        .option:hover {
+            background-color: #f0f0f0;
             transform: translateY(-2px);
         }
-        button:disabled {
+        .option.selected {
+            background-color: #d6eaf8;
+            border-color: var(--primary);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .option.correct {
+            background-color: #d4edda;
+            border-color: #28a745;
+        }
+        .option.incorrect {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+        }
+        .submit-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: background-color 0.3s;
+            font-weight: 600;
+        }
+        .submit-btn:hover {
+            background-color: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .submit-btn:disabled {
             background-color: #bdc3c7;
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
         }
         .result {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 5px;
-            font-weight: bold;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+            font-size: 1.1rem;
+            word-break: break-word;
         }
-        .correct {
+        .result.correct {
             background-color: #d4edda;
             color: #155724;
+            display: block;
             border: 1px solid #c3e6cb;
         }
-        .incorrect {
+        .result.incorrect {
             background-color: #f8d7da;
             color: #721c24;
+            display: block;
             border: 1px solid #f5c6cb;
         }
-        .unlock {
-            text-align: center;
-            font-size: 1.2em;
-            color: #27ae60;
-            margin: 20px 0;
+        .venn-container {
+            display: flex;
+            justify-content: center;
+            margin: 25px 0;
+            width: 100%;
+            overflow-x: auto;
         }
-        .progress {
-            background-color: #ecf0f1;
-            border-radius: 10px;
-            height: 20px;
-            margin: 20px 0;
-            overflow: hidden;
+        .venn-diagram {
+            width: 320px;
+            height: 220px;
+            position: relative;
+            min-width: 220px;
+        }
+        .circle {
+            border-radius: 50%;
+            position: absolute;
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .circle-a {
+            background-color: #3498db;
+            width: 150px;
+            height: 150px;
+            left: 30px;
+            top: 35px;
+        }
+        .circle-b {
+            background-color: #2ecc71;
+            width: 150px;
+            height: 150px;
+            right: 30px;
+            top: 35px;
+        }
+        .circle-no-overlap-a {
+            background-color: #3498db;
+            width: 150px;
+            height: 150px;
+            left: 20px;
+            top: 35px;
+        }
+        .circle-no-overlap-b {
+            background-color: #2ecc71;
+            width: 150px;
+            height: 150px;
+            right: 20px;
+            top: 35px;
+        }
+        .intersection {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            color: var(--dark);
+            background: rgba(255,255,255,0.8);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 1.1rem;
+        }
+        .faq-section {
+            margin-top: 50px;
+            background: var(--book-bg);
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--book-border);
+        }
+        .faq-title {
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            color: var(--dark);
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--book-border);
+        }
+        .faq-item {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 20px;
+        }
+        .faq-question {
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+        .faq-answer {
+            line-height: 1.7;
+            font-size: 1.1rem;
         }
         .progress-bar {
-            background-color: #3498db;
+            height: 12px;
+            background-color: #e0e0e0;
+            border-radius: 6px;
+            margin: 25px 0;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .progress {
             height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
             width: 0%;
             transition: width 0.5s ease;
+            border-radius: 6px;
         }
-        #level1 { display: block; }
-        .mathjax-render { text-align: center; font-size: 1.2em; margin: 10px 0; }
-        .detailed-tip {
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            font-style: italic;
+        .progress-text {
+            text-align: center;
+            font-weight: 700;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: var(--dark);
         }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-</head>
-<body>
-    <h1>সম্ভাব্যতার খেলা: সূত্র আনলক করুন! 🎯</h1>
-    
-    <div class="progress">
-        <div class="progress-bar" id="progressBar"></div>
-    </div>
-    
-    <p style="text-align: center; font-style: italic;">সম্ভাব্যতার মৌলিক সূত্রগুলো খেলার মাধ্যমে শিখুন! প্রত্যেক লেভেলে একটা সূত্র শিখুন, সমস্যা সমাধান করুন, এবং পরবর্তী সূত্র আনলক করুন। সবগুলো আনলক করলে আপনি মাস্টার!</p>
-    
-    <!-- Level 1: Basic Probability -->
-    <div id="level1" class="level active">
-        <h2>লেভেল ১: সম্ভাব্যতার সংজ্ঞা 🏁</h2>
-        <div class="formula-box">
-            <div class="mathjax-render">\[ P(A) = \frac{n(A)}{n(S)} \]</div>
-            <p><strong>ব্যাখ্যা:</strong> এখানে \( P(A) \) হলো ঘটনা A-এর সম্ভাব্যতা, \( n(A) \) হলো A-এর অনুকূল ফলাফলের সংখ্যা, এবং \( n(S) \) হলো মোট সম্ভাব্য ফলাফল (স্যাম্পল স্পেস)। সহজ কথায়, "চাহিদা মোটের ভাগ!"</p>
-        </div>
-        <div class="explanation">
-            <p>এই সূত্রটি সম্ভাব্যতার মূল ভিত্তি। স্যাম্পল স্পেস \( S \) হলো সব সম্ভাব্য ফলাফলের সমষ্টি, যা সমান সম্ভাব্য বলে ধরা হয় (যেমন, একটা নিরপেক্ষ ডাইসের ৬টা মুখ)। \( n(A) \) হলো সেই ফলাফলগুলো যা আপনার ঘটনা A-এর সাথে মিলে যায়। এই অনুপাত (ratio) আমাদের বলে দেয় কতটা সম্ভাবনা আছে A ঘটার। সম্ভাব্যতা সবসময় ০ থেকে ১ এর মধ্যে থাকে: ০ মানে অসম্ভব, ১ মানে নিশ্চিত।</p>
-            <div class="detailed-tip">
-                <strong>টিপ:</strong> বাস্তব জীবনে, যদি আবহাওয়ার পূর্বাভাস বলে ৩০% বৃষ্টির সম্ভাবনা, তাহলে \( n(A) = ৩০ \) (৩০ দিনে বৃষ্টি) এবং \( n(S) = ১০০ \) (মোট দিন)। এটা সাহায্য করে সিদ্ধান্ত নিতে, যেমন ছাতা নেব কি না।
-            </div>
-            <p>উদাহরণ: একটা সিক্কা টস করলে 'হেড' আসার সম্ভাব্যতা? \( n(S) = 2 \) (হেড বা টেল), \( n(A) = 1 \) (শুধু হেড), তাই \( P(A) = \frac{1}{2} = 0.5 \ বা\ 50\% \)。 এখানে স্যাম্পল স্পেস ছোট, কিন্তু একই নিয়ম বড় ঘটনায়ও কাজ করে।</p>
-        </div>
-        <div class="quiz">
-            <h3>চ্যালেঞ্জ: একটা ৬-মুখী ডাইসে জোড় সংখ্যা (২,৪,৬) আসার সম্ভাব্যতা কত?</h3>
-            <p>উত্তর দিন (দশমিক আকারে, যেমন 0.5):</p>
-            <input type="number" id="ans1" step="0.01" placeholder="উত্তর">
-            <button onclick="checkAnswer(1, 0.5)">জমা দিন!</button>
-            <div id="result1" class="result"></div>
-        </div>
-    </div>
-    
-    <!-- Level 2: Mutually Exclusive Union -->
-    <div id="level2" class="level">
-        <h2>লেভেল ২: পরস্পর অসম্ভাব্য ঘটনার যোগফল 🔓</h2>
-        <div class="formula-box">
-            <div class="mathjax-render">\[ P(A \cup B) = P(A) + P(B) \]</div>
-            <p><strong>ব্যাখ্যা:</strong> যদি A এবং B কখনো একসাথে ঘটতে না পারে, তাহলে তাদের যোগফলের সম্ভাব্যতা শুধু যোগ করুন। কোনো ওভারল্যাপ নেই!</p>
-        </div>
-        <div class="explanation">
-            <p>পরস্পর অসম্ভাব্য (mutually exclusive) ঘটনা বলতে এমন দুটো ঘটনা বোঝায় যা একই সাথে ঘটতে পারে না। উদাহরণস্বরূপ, একটা ডাইসে ১ আসা এবং ২ আসা—এগুলো একসাথে হওয়া অসম্ভব। এখানে ছেদ (\( A \cap B \)) এর সম্ভাব্যতা ০। তাই যোগফল সহজ: শুধু যোগ করুন। এই সূত্রটি ব্যবহার করে আমরা একাধিক অসম্ভাব্য ঘটনার মোট সম্ভাব্যতা বের করতে পারি, যা বাস্তবে ইনস্যুরেন্স ক্যালকুলেশনে বা ঝুঁকি মূল্যায়নে কাজে লাগে।</p>
-            <div class="detailed-tip">
-                <strong>টিপ:</strong> যদি ঘটনাগুলো অসম্ভাব্য না হয়, তাহলে পরের লেভেলের সূত্র ব্যবহার করুন। এটা ভেন ডায়াগ্রামে দুটো বৃত্ত যা একদম আলাদা—কোনো ছেদ নেই।
-            </div>
-            <p>উদাহরণ: ডাইসে ১ আসা বা ৬ আসা। \( P(1) = \frac{1}{6} \approx 0.167 \), \( P(6) = \frac{1}{6} \approx 0.167 \), তাই \( P(A \cup B) = 0.167 + 0.167 = 0.333 \ বা\ \frac{1}{3} \)。 এখানে মোট অনুকূল ফলাফল ২টা, স্যাম্পল স্পেস ৬টা, যা মিলে যায়।</p>
-        </div>
-        <div class="quiz">
-            <h3>চ্যালেঞ্জ: ডাইসে ১ বা ২ আসার সম্ভাব্যতা?</h3>
-            <input type="number" id="ans2" step="0.01" placeholder="উত্তর">
-            <button onclick="checkAnswer(2, 0.333)">জমা দিন!</button>
-            <div id="result2" class="result"></div>
-        </div>
-    </div>
-    
-    <!-- Level 3: General Union -->
-    <div id="level3" class="level">
-        <h2>লেভেল ৩: সাধারণ যোগফলের সূত্র 🔓</h2>
-        <div class="formula-box">
-            <div class="mathjax-render">\[ P(A \cup B) = P(A) + P(B) - P(A \cap B) \]</div>
-            <p><strong>ব্যাখ্যা:</strong> যদি A এবং B একসাথে ঘটতে পারে, তাহলে ওভারল্যাপ অংশ (\( P(A \cap B) \)) বিয়োগ করুন। এটা ভেন ডায়াগ্রামের মতো!</p>
-        </div>
-        <div class="explanation">
-            <p>এই সূত্রটি সবচেয়ে ব্যবহারিক, কারণ বাস্তবে ঘটনাগুলো প্রায়ই ওভারল্যাপ করে। যোগ করলে ওভারল্যাপ অংশ দুবার গণনা হয়ে যায়, তাই ছেদ (\( A \cap B \)) বিয়োগ করে সংশোধন করি। \( P(A \cap B) \) হলো দুটো ঘটনা একসাথে ঘটার সম্ভাব্যতা। এটা ব্যবহার করে আমরা জটিল সম্ভাব্যতা যেমন মার্কেটিং-এ কাস্টমার অভ্যাস বা মেডিকেল ডায়াগনোসিসে রোগের সম্ভাবনা হিসাব করি।</p>
-            <div class="detailed-tip">
-                <strong>টিপ:</strong> ভেন ডায়াগ্রাম আঁকুন: A-এর অংশ + B-এর অংশ - ছেদ অংশ = মোট যোগফল। যদি ছেদ ০ হয়, তাহলে এটা লেভেল ২-এর মতো হয়ে যায়।
-            </div>
-            <p>উদাহরণ: ডাইসে জোড় সংখ্যা (A: ২,৪,৬; \( P(A)=0.5 \)) বা ৩-এর গুণিতক (B: ৩,৬; \( P(B)\approx0.333 \))। ছেদ: ৬ (\( P(A \cap B)\approx0.167 \))। তাই \( P(A \cup B) = 0.5 + 0.333 - 0.167 = 0.666 \ বা\ \frac{2}{3} \)。 মোট অনুকূল: ২,৩,৪,৬ (৪টা), যা ৪/৬=০.৬৬৬।</p>
-        </div>
-        <div class="quiz">
-            <h3>চ্যালেঞ্জ: P(A)=0.4, P(B)=0.5, P(A∩B)=0.2 হলে P(A∪B)=?</h3>
-            <input type="number" id="ans3" step="0.01" placeholder="উত্তর">
-            <button onclick="checkAnswer(3, 0.7)">জমা দিন!</button>
-            <div id="result3" class="result"></div>
-        </div>
-    </div>
-    
-    <!-- Level 4: Independent Intersection -->
-    <div id="level4" class="level">
-        <h2>লেভেল ৪: অনিচ্ছাকৃত ঘটনার গুণফল 🔓</h2>
-        <div class="formula-box">
-            <div class="mathjax-render">\[ P(A \cap B) = P(A) \cdot P(B) \]</div>
-            <p><strong>ব্যাখ্যা:</strong> যদি A এবং B একে অপরের উপর নির্ভর না করে, তাহলে তাদের ছেদের সম্ভাব্যতা গুণ করুন। দুটো আলাদা কয়েন টসের মতো!</p>
-        </div>
-        <div class="explanation">
-            <p>অনিচ্ছাকৃত (independent) ঘটনা বলতে এমন ঘটনা যার একটি ঘটা অন্যটির সম্ভাব্যতা পরিবর্তন করে না। উদাহরণ: প্রথম সিক্কায় হেড আসলে দ্বিতীয়টির সম্ভাব্যতা একই থাকে। গুণফল করে আমরা শ্রেণীবদ্ধ সম্ভাব্যতা (joint probability) পাই, যা চেইন রিয়্যাকশনের মতো একাধিক ধাপের ঘটনায় কাজে লাগে—যেমন, স্টক মার্কেটে দুটো আলাদা কোম্পানির পারফরম্যান্স।</p>
-            <div class="detailed-tip">
-                <strong>টিপ:</strong> যাচাই করুন অনিচ্ছাকৃত কি না: যদি \( P(A \cap B) = P(A) \times P(B) \) হয়, তাহলে হ্যাঁ। না হলে, শর্তসাপেক্ষ সূত্র ব্যবহার করুন।
-            </div>
-            <p>উদাহরণ: দুটো সিক্কা টস। A=প্রথম হেড (\( P(A)=0.5 \)), B=দ্বিতীয় হেড (\( P(B)=0.5 \))। \( P(A \cap B) = 0.5 \times 0.5 = 0.25 \ বা\ 25\% \)。 মোট ফলাফল ৪টা (HH, HT, TH, TT), শুধু HH মিলে।</p>
-        </div>
-        <div class="quiz">
-            <h3>চ্যালেঞ্জ: P(A)=0.6, P(B)=0.4 হলে P(A∩B)=?</h3>
-            <input type="number" id="ans4" step="0.01" placeholder="উত্তর">
-            <button onclick="checkAnswer(4, 0.24)">জমা দিন!</button>
-            <div id="result4" class="result"></div>
-        </div>
-    </div>
-    
-    <!-- Level 5: Conditional Probability -->
-    <div id="level5" class="level">
-        <h2>লেভেল ৫: শর্তসাপেক্ষ সম্ভাব্যতা 🔓</h2>
-        <div class="formula-box">
-            <div class="mathjax-render">\[ P(A|B) = \frac{P(A \cap B)}{P(B)} \]</div>
-            <p><strong>ব্যাখ্যা:</strong> B ঘটার পর A ঘটার সম্ভাবনা। B-এর মধ্যে A-এর অংশ। বাস্তবে, "যদি বৃষ্টি হয়, তাহলে ছাতা নেওয়ার সম্ভাবনা?"</p>
-        </div>
-        <div class="explanation">
-            <p>শর্তসাপেক্ষ সম্ভাব্যতা (conditional probability) আমাদের বলে একটা ঘটনা অন্যটির উপর নির্ভর করে কতটা পরিবর্তিত হয়। \( P(A|B) \) মানে B ঘটার শর্তে A-এর সম্ভাব্যতা। এটা বায়েসিয়ান থিওরির ভিত্তি, যা AI, মেডিসিন (যেমন, টেস্ট পজিটিভ হলে রোগের সম্ভাবনা), এবং সিদ্ধান্ত তত্ত্বে ব্যবহৃত। যদি B-এর সম্ভাব্যতা ০ হয়, তাহলে এটা অসংজ্ঞায়িত।</p>
-            <div class="detailed-tip">
-                <strong>টিপ:</strong> এটা যেন B-এর একটা ছোট স্যাম্পল স্পেসে A-এর অনুপাত। অনিচ্ছাকৃত হলে \( P(A|B) = P(A) \), কিন্তু সাধারণত ভিন্ন।
-            </div>
-            <p>উদাহরণ: ধরুন \( P(A \cap B)=0.1 \), \( P(B)=0.5 \), তাহলে \( P(A|B)=\frac{0.1}{0.5}=0.2 \)。 অর্থাৎ, B ঘটলে A-এর সম্ভাব্যতা ২০%। এটা সাধারণ P(A) থেকে ভিন্ন হতে পারে।</p>
-        </div>
-        <div class="quiz">
-            <h3>চ্যালেঞ্জ: P(A∩B)=0.15, P(B)=0.3 হলে P(A|B)=?</h3>
-            <input type="number" id="ans5" step="0.01" placeholder="উত্তর">
-            <button onclick="checkAnswer(5, 0.5)">জমা দিন!</button>
-            <div id="result5" class="result"></div>
-        </div>
-    </div>
-    
-    <!-- Level 6: Independent Union -->
-    <div id="level6" class="level">
-        <h2>লেভেল ৬: অনিচ্ছাকৃত ঘটনার যোগফল (ফাইনাল!) 🎉</h2>
-        <div class="formula-box">
-            <div class="mathjax-render">\[ P(A \cup B) = P(A) + P(B) - P(A) \cdot P(B) \]</div>
-            <p><strong>ব্যাখ্যা:</strong> অনিচ্ছাকৃত হলে, যোগফল = যোগ - গুণফল। শেষ সূত্র! এখন আপনি সম্ভাব্যতার এক্সপার্ট।</p>
-        </div>
-        <div class="explanation">
-            <p>এই সূত্রটি লেভেল ৩-এর সাধারণ যোগফলের একটা বিশেষ ক্ষেত্র, যেখানে \( P(A \cap B) = P(A) \times P(B) \) কারণ অনিচ্ছাকৃত। এটা ব্যবহার করে আমরা "অন্তত একটা" ঘটনা ঘটার সম্ভাব্যতা হিসাব করি, যা নির্ভরযোগ্য সিস্টেম ডিজাইনে (যেমন, দুটো সেন্সর ফেল করার সম্ভাবনা) কাজে লাগে। এটা দেখায় কীভাবে অনিচ্ছাকৃততা যোগফলকে সহজ করে।</p>
-            <div class="detailed-tip">
-                <strong>টিপ:</strong> এটা ১ - P(না A এবং না B) এর সমতুল্য: \( P(A \cup B) = 1 - (1 - P(A))(1 - P(B)) \), যা কম্প্লিমেন্ট ব্যবহার করে।
-            </div>
-            <p>উদাহরণ: P(A)=0.5 (হেড প্রথম সিক্কায়), P(B)=0.5 (হেড দ্বিতীয় সিক্কায়)। \( P(A \cup B) = 0.5 + 0.5 - (0.5 \times 0.5) = 0.75 \)。 অর্থাৎ, অন্তত একটা হেড আসার ৭৫% সম্ভাবনা।</p>
-        </div>
-        <div class="quiz">
-            <h3>চ্যালেঞ্জ: P(A)=0.7, P(B)=0.4 হলে P(A∪B)=?</h3>
-            <input type="number" id="ans6" step="0.01" placeholder="উত্তর">
-            <button onclick="checkAnswer(6, 0.82)">জমা দিন!</button>
-            <div id="result6" class="result"></div>
-        </div>
-        <div id="congrats" class="unlock" style="display: none;">🎊 অভিনন্দন! আপনি সব সূত্র আনলক করেছেন। সম্ভাব্যতার মাস্টার! আরও চ্যালেঞ্জ চান?</div>
-    </div>
-    
-    <script>
-        let currentLevel = 1;
-        const totalLevels = 6;
-        const correctAnswers = [0.5, 0.333, 0.7, 0.24, 0.5, 0.82];
-        
-        function checkAnswer(level, correct) {
-            const userAns = parseFloat(document.getElementById(`ans${level}`).value);
-            const resultDiv = document.getElementById(`result${level}`);
-            const submitBtn = event.target;
-            
-            if (Math.abs(userAns - correct) < 0.01) { // Tolerance for floating point
-                resultDiv.className = 'result correct';
-                resultDiv.innerHTML = 'সঠিক! 🎉';
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'সঠিক!';
-                
-                // Unlock next level
-                if (level < totalLevels) {
-                    setTimeout(() => {
-                        document.getElementById(`level${level}`).classList.remove('active');
-                        document.getElementById(`level${level + 1}`).classList.add('active');
-                        currentLevel++;
-                        updateProgress();
-                    }, 1500);
-                } else {
-                    setTimeout(() => {
-                        document.getElementById('congrats').style.display = 'block';
-                        updateProgress();
-                    }, 1500);
-                }
-            } else {
-                resultDiv.className = 'result incorrect';
-                resultDiv.innerHTML = `ভুল! সঠিক উত্তর: ${correct.toFixed(3)}. আবার চেষ্টা করুন।`;
+        .math-example {
+            font-family: 'Times New Roman', serif;
+            line-height: 1.8;
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            font-size: 1.1rem;
+            overflow-x: auto;
+        }
+        .math-line {
+            margin: 8px 0;
+        }
+
+        /* RESPONSIVE STYLES */
+        @media (max-width: 1024px) {
+            .game-area {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .formula-section {
+                min-width: 0;
+                padding: 18px;
+            }
+            .venn-diagram {
+                width: 240px;
+                height: 160px;
+            }
+            .circle-a, .circle-b, .circle-no-overlap-a, .circle-no-overlap-b {
+                width: 110px;
+                height: 110px;
+                font-size: 1rem;
             }
         }
-        
-        function updateProgress() {
-            const progress = (currentLevel / totalLevels) * 100;
-            document.getElementById('progressBar').style.width = progress + '%';
+        @media (max-width: 768px) {
+            .container {
+                padding: 8px;
+            }
+            header {
+                padding: 12px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .game-area {
+                gap: 10px;
+            }
+            .formula-section {
+                padding: 12px;
+            }
+            .formula-title {
+                font-size: 1.1rem;
+            }
+            .formula-number {
+                width: 30px;
+                height: 30px;
+                font-size: 1rem;
+            }
+            .formula-box {
+                padding: 8px;
+                font-size: 1rem;
+            }
+            .math-formula {
+                font-size: 1.1rem;
+                padding: 5px;
+            }
+            .example, .practice-area {
+                padding: 10px;
+                font-size: 1rem;
+            }
+            .venn-diagram {
+                width: 160px;
+                height: 100px;
+            }
+            .circle-a, .circle-b, .circle-no-overlap-a, .circle-no-overlap-b {
+                width: 65px;
+                height: 65px;
+                font-size: .8rem;
+            }
         }
-        
-        // Initial progress
-        updateProgress();
+        @media (max-width: 480px) {
+            .container {
+                padding: 2px;
+            }
+            header {
+                font-size: 90%;
+            }
+            h1 {
+                font-size: 1.2rem;
+            }
+            .faq-section {
+                padding: 8px;
+            }
+            .faq-title {
+                font-size: 1.1rem;
+            }
+            .faq-question {
+                font-size: 1rem;
+            }
+            .faq-answer {
+                font-size: .95rem;
+            }
+            .venn-diagram {
+                width: 110px;
+                height: 70px;
+            }
+            .circle-a, .circle-b, .circle-no-overlap-a, .circle-no-overlap-b {
+                width: 35px;
+                height: 35px;
+                font-size: .6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>সম্ভাবনা শিক্ষা</h1>
+            <p class="subtitle">ইন্টারেক্টিভ গেমের মাধ্যমে সম্ভাবনার সূত্রগুলো শিখুন</p>
+        </header>
+        <div class="progress-text">অগ্রগতি: <span id="progress-percent">0%</span></div>
+        <div class="progress-bar"><div class="progress" id="progress"></div></div>
+        <div class="game-area" id="game-area"></div>
+        <div class="faq-section">
+            <h2 class="faq-title">সচরাচর জিজ্ঞাসিত প্রশ্ন (FAQ)</h2>
+            <div class="faq-item">
+                <div class="faq-question">সম্ভাবনা কী?</div>
+                <div class="faq-answer">সম্ভাবনা হলো কোনো ঘটনা ঘটার সম্ভাবনার সংখ্যাগত পরিমাপ। এটি 0 থেকে 1 এর মধ্যে প্রকাশ করা হয়, যেখানে 0 মানে ঘটনাটি কখনোই ঘটবে না এবং 1 মানে ঘটনাটি অবশ্যই ঘটবে।</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">নমুনা স্থান (Sample Space) কী?</div>
+                <div class="faq-answer">একটি পরীক্ষার সমস্ত সম্ভাব্য ফলাফলের সেটকে নমুনা স্থান বলে। এটি সাধারণত S দ্বারা চিহ্নিত করা হয়।</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">বর্জনশীল ঘটনা (Mutually Exclusive Events) কী?</div>
+                <div class="faq-answer">দুটি ঘটনাকে বর্জনশীল বলা হয় যদি তারা একই সাথে ঘটতে না পারে। অর্থাৎ, তাদের ছেদ শূন্য (A ∩ B = ∅)।</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">স্বাধীন ঘটনা (Independent Events) কী?</div>
+                <div class="faq-answer">দুটি ঘটনা স্বাধীন হয় যদি একটি ঘটনা ঘটা অন্যটির সম্ভাবনাকে প্রভাবিত না করে। অর্থাৎ, P(A|B) = P(A) এবং P(B|A) = P(B)।</div>
+            </div>
+        </div>
+    </div>
+    <!-- KaTeX JS for math rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <script>
+        // Formula data (LaTeX everywhere)
+        const formulas = [
+            {
+                id: 1,
+                title: "সম্ভাবনার মৌলিক সূত্র",
+                formula: "$$P(A) = \\frac{n(A)}{n(S)}$$",
+                explanation: "কোনো ঘটনা $A$ ঘটার সম্ভাবনা হলো $A$ ঘটনার উপাদান সংখ্যা এবং নমুনা স্থান $S$-এর মোট উপাদান সংখ্যার অনুপাত। এই সূত্রটি সম্ভাবনার সবচেয়ে মৌলিক সংজ্ঞা এবং অন্যান্য সব সূত্রের ভিত্তি।",
+                example: {
+                    question: "একটি নিরপেক্ষ ছক্কা নিক্ষেপ করা হলে জোড় সংখ্যা উঠার সম্ভাবনা কত?",
+                    solution: `<div class="math-example">
+                        <div class="math-line">নমুনা স্থান $S = \\{1, 2, 3, 4, 5, 6\\}$</div>
+                        <div class="math-line">$n(S) = 6$</div>
+                        <div class="math-line">জোড় সংখ্যার সেট $A = \\{2, 4, 6\\}$</div>
+                        <div class="math-line">$n(A) = 3$</div>
+                        <div class="math-line">$$P(A) = \\frac{n(A)}{n(S)} = \\frac{3}{6} = \\frac{1}{2}$$</div>
+                    </div>`
+                },
+                practice: {
+                    question: "একটি ব্যাগে 5টি লাল, 3টি নীল এবং 2টি সবুজ বল আছে। যদি এলোমেলোভাবে একটি বল তোলা হয়, তাহলে নীল বল পাওয়ার সম্ভাবনা কত?",
+                    options: ["$\\frac{3}{10}$", "$\\frac{1}{2}$", "$\\frac{1}{5}$", "$\\frac{2}{5}$"],
+                    correct: 0,
+                    explanation: "মোট বল $= 5 + 3 + 2 = 10$<br>নীল বল $= 3$<br>সম্ভাবনা $= \\frac{3}{10}$"
+                }
+            },
+            {
+                id: 2,
+                title: "বর্জনশীল ঘটনার যোগসূত্র",
+                formula: "$$P(A \\cup B) = P(A) + P(B)$$",
+                explanation: "যদি $A$ এবং $B$ দুটি বর্জনশীল ঘটনা হয় (অর্থাৎ তারা একই সাথে ঘটতে পারে না), তাহলে $A$ অথবা $B$ ঘটার সম্ভাবনা হলো তাদের পৃথক সম্ভাবনার সমষ্টি। এই সূত্রটি শুধুমাত্র তখনই প্রযোজ্য যখন $A$ এবং $B$ পরস্পর বর্জনশীল।",
+                example: {
+                    question: "একটি ছক্কা নিক্ষেপ করা হলে 2 অথবা 5 উঠার সম্ভাবনা কত?",
+                    solution: `<div class="math-example">
+                        <div class="math-line">$P(2) = \\frac{1}{6}$</div>
+                        <div class="math-line">$P(5) = \\frac{1}{6}$</div>
+                        <div class="math-line">যেহেতু 2 এবং 5 একই সাথে উঠতে পারে না, তাই তারা বর্জনশীল</div>
+                        <div class="math-line">$$P(2 \\text{ বা } 5) = P(2) + P(5) = \\frac{1}{6} + \\frac{1}{6} = \\frac{2}{6} = \\frac{1}{3}$$</div>
+                    </div>`
+                },
+                practice: {
+                    question: "একটি ব্যাগে 4টি লাল, 5টি নীল এবং 6টি সবুজ মার্বেল আছে। এলোমেলোভাবে একটি মার্বেল তুললে সেটি লাল বা নীল হওয়ার সম্ভাবনা কত?",
+                    options: ["$\\frac{3}{5}$", "$\\frac{2}{5}$", "$\\frac{9}{15}$", "$\\frac{1}{3}$"],
+                    correct: 0,
+                    explanation: "মোট মার্বেল $= 4 + 5 + 6 = 15$<br>লাল বা নীল মার্বেল $= 4 + 5 = 9$<br>সম্ভাবনা $= \\frac{9}{15} = \\frac{3}{5}$"
+                },
+                venn: "no-overlap"
+            },
+            {
+                id: 3,
+                title: "অবর্জনশীল ঘটনার যোগসূত্র",
+                formula: "$$P(A \\cup B) = P(A) + P(B) - P(A \\cap B)$$",
+                explanation: "যদি $A$ এবং $B$ দুটি অবর্জনশীল ঘটনা হয় (অর্থাৎ তারা একই সাথে ঘটতে পারে), তাহলে $A$ অথবা $B$ ঘটার সম্ভাবনা হলো তাদের পৃথক সম্ভাবনার সমষ্টি থেকে তাদের যৌথ সম্ভাবনা বিয়োগ। এই বিয়োগ করা হয় যেন ছেদ অংশ দুইবার গণনা করা না হয়।",
+                example: {
+                    question: "52টি তাসের একটি গোছা থেকে একটি তাস তোলা হলে সেটি হরতন অথবা রাজা হওয়ার সম্ভাবনা কত?",
+                    solution: `<div class="math-example">
+                        <div class="math-line">$P(হরতন) = \\frac{13}{52}$</div>
+                        <div class="math-line">$P(রাজা) = \\frac{4}{52}$</div>
+                        <div class="math-line">$P(হরতন \\text{ এবং } রাজা) = \\frac{1}{52}$ (হরতনের রাজা)</div>
+                        <div class="math-line">$$P(হরতন \\text{ বা } রাজা) = \\frac{13}{52} + \\frac{4}{52} - \\frac{1}{52} = \\frac{16}{52} = \\frac{4}{13}$$</div>
+                    </div>`
+                },
+                practice: {
+                    question: "একটি শ্রেণিতে 30 জন শিক্ষার্থীর মধ্যে 20 জন গণিত পছন্দ করে এবং 15 জন বিজ্ঞান পছন্দ করে। 10 জন উভয় বিষয় পছন্দ করে। এলোমেলোভাবে একজন শিক্ষার্থী নির্বাচন করলে সে গণিত বা বিজ্ঞান পছন্দ করার সম্ভাবনা কত?",
+                    options: ["$\\frac{5}{6}$", "$\\frac{2}{3}$", "$\\frac{1}{3}$", "$\\frac{7}{10}$"],
+                    correct: 0,
+                    explanation: "$P(গণিত) = \\frac{20}{30}$, $P(বিজ্ঞান) = \\frac{15}{30}$, $P(উভয়) = \\frac{10}{30}$<br>$P(গণিত \\text{ বা } বিজ্ঞান) = \\frac{20}{30} + \\frac{15}{30} - \\frac{10}{30} = \\frac{25}{30} = \\frac{5}{6}$"
+                },
+                venn: "overlap"
+            },
+            {
+                id: 4,
+                title: "স্বাধীন ঘটনার গুণন সূত্র",
+                formula: "$$P(A \\cap B) = P(A) \\times P(B)$$",
+                explanation: "যদি $A$ এবং $B$ দুটি স্বাধীন ঘটনা হয় (একটি ঘটনা ঘটা অন্যটির সম্ভাবনাকে প্রভাবিত করে না), তাহলে $A$ এবং $B$ উভয় ঘটনার সম্ভাবনা হলো তাদের পৃথক সম্ভাবনার গুণফল। এই সূত্রটি শুধুমাত্র স্বাধীন ঘটনার ক্ষেত্রে প্রযোজ্য।",
+                example: {
+                    question: "একটি মুদ্রা এবং একটি ছক্কা একসাথে নিক্ষেপ করা হলে মুদ্রায় হেড এবং ছক্কায় 6 উঠার সম্ভাবনা কত?",
+                    solution: `<div class="math-example">
+                        <div class="math-line">$P(মুদ্রায় হেড) = \\frac{1}{2}$</div>
+                        <div class="math-line">$P(ছক্কায় 6) = \\frac{1}{6}$</div>
+                        <div class="math-line">যেহেতু মুদ্রা এবং ছক্কা স্বাধীন</div>
+                        <div class="math-line">$$P(হেড \\text{ এবং } 6) = \\frac{1}{2} \\times \\frac{1}{6} = \\frac{1}{12}$$</div>
+                    </div>`
+                },
+                practice: {
+                    question: "দুটি নিরপেক্ষ মুদ্রা একসাথে নিক্ষেপ করা হলে উভয় মুদ্রায় হেড উঠার সম্ভাবনা কত?",
+                    options: ["$\\frac{1}{4}$", "$\\frac{1}{2}$", "$\\frac{3}{4}$", "$\\frac{1}{3}$"],
+                    correct: 0,
+                    explanation: "প্রথম মুদ্রায় হেড উঠার সম্ভাবনা $= \\frac{1}{2}$<br>দ্বিতীয় মুদ্রায় হেড উঠার সম্ভাবনা $= \\frac{1}{2}$<br>উভয় মুদ্রায় হেড উঠার সম্ভাবনা $= \\frac{1}{2} \\times \\frac{1}{2} = \\frac{1}{4}$"
+                },
+                venn: "independent"
+            },
+            {
+                id: 5,
+                title: "শর্তাধীন সম্ভাবনা",
+                formula: "$$P(A|B) = \\frac{P(A \\cap B)}{P(B)}$$",
+                explanation: "$B$ ঘটনা ঘটলে $A$ ঘটার সম্ভাবনাকে শর্তাধীন সম্ভাবনা বলে। এটি $A$ এবং $B$-এর যৌথ সম্ভাবনা এবং $B$-এর সম্ভাবনার অনুপাত। এই সূত্রটি নির্ভরশীল ঘটনার ক্ষেত্রে প্রয়োগ করা হয়।",
+                example: {
+                    question: "52টি তাসের গোছা থেকে একটি তাস তোলা হলো এবং দেখা গেল সেটি হরতনের তাস। এটি হরতনের রাজা হওয়ার সম্ভাবনা কত?",
+                    solution: `<div class="math-example">
+                        <div class="math-line">$$P(হরতনের রাজা | হরতনের তাস) = \\frac{P(হরতনের রাজা)}{P(হরতনের তাস)}$$</div>
+                        <div class="math-line">$$= \\frac{\\frac{1}{52}}{\\frac{13}{52}} = \\frac{1}{13}$$</div>
+                    </div>`
+                },
+                practice: {
+                    question: "একটি ব্যাগে 3টি লাল ও 2টি নীল বল আছে। প্রথমে একটি লাল বল তোলা হলো এবং সেটি ফেরত না দিয়ে দ্বিতীয়বার একটি বল তোলা হলো। দ্বিতীয় বলটি নীল হওয়ার সম্ভাবনা কত?",
+                    options: ["$\\frac{2}{5}$", "$\\frac{1}{2}$", "$\\frac{3}{5}$", "$\\frac{1}{4}$"],
+                    correct: 1,
+                    explanation: "প্রথমবার লাল বল তোলার পর ব্যাগে থাকে: 2 লাল, 2 নীল বল<br>∴ দ্বিতীয় বল নীল হওয়ার সম্ভাবনা $= \\frac{2}{4} = \\frac{1}{2}$"
+                },
+                venn: "conditional"
+            },
+            {
+                id: 6,
+                title: "স্বাধীন ঘটনার জন্য মিলিত সম্ভাবনা",
+                formula: "$$P(A \\cup B) = P(A) + P(B) - P(A) \\times P(B)$$",
+                explanation: "যখন $A$ এবং $B$ স্বাধীন ঘটনা, তখন $A$ অথবা $B$ ঘটার সম্ভাবনা হলো তাদের পৃথক সম্ভাবনার সমষ্টি থেকে তাদের গুণফল বিয়োগ। এটি সাধারণ যোগ সূত্রের একটি বিশেষ রূপ যখন ঘটনাদ্বয় স্বাধীন।",
+                example: {
+                    question: "দুটি স্বাধীন ঘটনা $A$ এবং $B$-এর জন্য $P(A) = 0.4$ এবং $P(B) = 0.5$ হলে, $P(A \\cup B)$ কত?",
+                    solution: `<div class="math-example">
+                        <div class="math-line">$$P(A \\cup B) = P(A) + P(B) - P(A) \\times P(B)$$</div>
+                        <div class="math-line">$$= 0.4 + 0.5 - (0.4 \\times 0.5)$$</div>
+                        <div class="math-line">$$= 0.9 - 0.2 = 0.7$$</div>
+                    </div>`
+                },
+                practice: {
+                    question: "দুটি স্বাধীন ঘটনা $A$ এবং $B$-এর জন্য $P(A) = 0.3$ এবং $P(B) = 0.6$ হলে, $P(A \\cup B)$ কত?",
+                    options: ["0.72", "0.18", "0.9", "0.78"],
+                    correct: 0,
+                    explanation: "$P(A \\cup B) = P(A) + P(B) - P(A) \\times P(B)$<br>$= 0.3 + 0.6 - (0.3 \\times 0.6)$<br>$= 0.9 - 0.18 = 0.72$"
+                },
+                venn: "independent-union"
+            }
+        ];
+
+        // Helper: Render KaTeX in an element (all math inside $...$ or $$...$$)
+        function renderMathInElementSafe(el) {
+            renderMathInElement(el, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "\\[", right: "\\]", display: true},
+                    {left: "$", right: "$", display: false},
+                    {left: "\\(", right: "\\)", display: false}
+                ],
+                throwOnError: false
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const gameArea = document.getElementById('game-area');
+            let unlockedFormulas = 1; // Start with first formula unlocked
+            const formulaSections = [];
+
+            function renderFormulas() {
+                gameArea.innerHTML = '';
+                formulaSections.length = 0;
+                formulas.forEach((formula, index) => {
+                    const formulaSection = document.createElement('div');
+                    formulaSection.className = `formula-section${index >= unlockedFormulas ? ' locked' : ''}`;
+                    formulaSection.id = `formula-${formula.id}`;
+                    
+                    let vennHTML = '';
+                    if (formula.venn) {
+                        if (formula.venn === "no-overlap") {
+                            vennHTML = `<div class="venn-container"><div class="venn-diagram"><div class="circle circle-no-overlap-a">A</div><div class="circle circle-no-overlap-b">B</div></div></div>`;
+                        } else if (formula.venn === "overlap") {
+                            vennHTML = `<div class="venn-container"><div class="venn-diagram"><div class="circle circle-a">A</div><div class="circle circle-b">B</div><div class="intersection">A∩B</div></div></div>`;
+                        } else if (formula.venn === "independent") {
+                            vennHTML = `<div class="venn-container"><div class="venn-diagram"><div class="circle circle-a" style="left: 40px;">A</div><div class="circle circle-b" style="right: 40px;">B</div><div class="intersection">A∩B</div></div></div>`;
+                        } else if (formula.venn === "independent-union") {
+                            vennHTML = `<div class="venn-container"><div class="venn-diagram"><div class="circle circle-a">A</div><div class="circle circle-b">B</div><div class="intersection">A∪B</div></div></div>`;
+                        }
+                    }
+                    
+                    formulaSection.innerHTML = `
+                        <div class="formula-header">
+                            <div class="formula-number">${formula.id}</div>
+                            <div class="formula-title">${formula.title}</div>
+                        </div>
+                        <div class="formula-box">
+                            <div class="math-formula">${formula.formula}</div>
+                        </div>
+                        <div class="explanation">${formula.explanation}</div>
+                        <div class="example">
+                            <div class="example-title">উদাহরণ:</div>
+                            <div class="question">${formula.example.question}</div>
+                            <div class="solution">${formula.example.solution}</div>
+                        </div>
+                        ${vennHTML}
+                        <div class="practice-area">
+                            <div class="practice-title">আপনার পালা:</div>
+                            <div class="question">${formula.practice.question}</div>
+                            <div class="options">
+                                ${formula.practice.options.map((option, i) => 
+                                    `<div class="option" data-index="${i}">${option}</div>`
+                                ).join('')}
+                            </div>
+                            <button class="submit-btn"${index >= unlockedFormulas ? ' disabled' : ''}>জমা দিন</button>
+                            <div class="result"></div>
+                        </div>
+                    `;
+                    gameArea.appendChild(formulaSection);
+                    formulaSections.push(formulaSection);
+                });
+            }
+
+            function attachListeners() {
+                for (let idx = 0; idx < unlockedFormulas; idx++) {
+                    const formulaSection = formulaSections[idx];
+                    if (formulaSection.classList.contains('locked')) continue;
+                    const options = formulaSection.querySelectorAll('.option');
+                    const submitBtn = formulaSection.querySelector('.submit-btn');
+                    const resultDiv = formulaSection.querySelector('.result');
+                    if (!submitBtn) continue;
+                    
+                    let selectedOption = null;
+                    options.forEach(option => {
+                        option.onclick = function() {
+                            options.forEach(opt => opt.classList.remove('selected'));
+                            this.classList.add('selected');
+                            selectedOption = parseInt(this.getAttribute('data-index'));
+                            submitBtn.disabled = false;
+                        };
+                    });
+                    submitBtn.onclick = function() {
+                        const formula = formulas[idx];
+                        if (selectedOption === formula.practice.correct) {
+                            resultDiv.innerHTML = `সঠিক! ${formula.practice.explanation}`;
+                            resultDiv.className = 'result correct';
+                            if (unlockedFormulas < formulas.length) {
+                                setTimeout(() => {
+                                    unlockedFormulas++;
+                                    renderFormulas();
+                                    updateProgress();
+                                    renderAllMath();
+                                    attachListeners();
+                                }, 1000);
+                            }
+                        } else {
+                            resultDiv.innerHTML = `ভুল! সঠিক উত্তর: ${formula.practice.options[formula.practice.correct]}. ${formula.practice.explanation}`;
+                            resultDiv.className = 'result incorrect';
+                        }
+                        renderMathInElementSafe(resultDiv);
+                    };
+                }
+            }
+
+            function updateProgress() {
+                const progressPercent = (unlockedFormulas / formulas.length) * 100;
+                document.getElementById('progress').style.width = `${progressPercent}%`;
+                document.getElementById('progress-percent').textContent = `${Math.round(progressPercent)}%`;
+            }
+
+            function renderAllMath() {
+                renderMathInElementSafe(document.getElementById('game-area'));
+            }
+
+            // Initial render
+            renderFormulas();
+            updateProgress();
+            renderAllMath();
+            attachListeners();
+
+            // Make math responsive on window resize (for KaTeX font scaling)
+            window.addEventListener('resize', function() {
+                renderAllMath();
+            });
+        });
     </script>
 </body>
-
 </html>
